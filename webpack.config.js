@@ -8,14 +8,12 @@ const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const StyleLintPlugin = require('stylelint-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const WebpackMonitor = require('webpack-monitor');
-const WebpackAutoInject = require('webpack-auto-inject-version');
 const webpack = require('webpack');
-const PostCssPipelineWebpackPlugin = require('postcss-pipeline-webpack-plugin');
-const postCssCriticalSplit = require('postcss-critical-split');
-const cssNano = require('cssnano');
 const openInEditor = require('launch-editor-middleware');
 const WebpackCleanPlugin = require('webpack-clean');
+const WebpackManifestPlugin = require('webpack-manifest-plugin');
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
+const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
 module.exports = function(env = {}, options = {}) {
   // Flags
@@ -26,14 +24,9 @@ module.exports = function(env = {}, options = {}) {
   const hotReload = !hasWatcher || !isProduction;
   const isProfileBuild = (options.profile && options.json) || false;
   const hasMonitorSnapshot = env.monitor || false;
-
-  const themes = {
-    'theme-01': path.resolve(__dirname, 'app/setup/scss/themes/theme-01.scss'),
-    'theme-02': path.resolve(__dirname, 'app/setup/scss/themes/theme-02.scss'),
-  };
-  const clean = [
-    ...Object.keys(themes).map(theme => `js/shop.${theme}.js`),
-  ];
+  const hash = isProduction && !hasWatcher ? '.[hash]' : '';
+  const chunkHash = isProduction && !hasWatcher ? '.[chunkhash]' : '';
+  const contentHash = isProduction && !hasWatcher ? '.[contenthash]' : '';
 
   // Configuration
   const buildPath = path.resolve(__dirname, 'dist');
@@ -45,6 +38,7 @@ module.exports = function(env = {}, options = {}) {
       NODE_ENV: JSON.stringify(isProduction ? 'production' : 'development'), // Needed by vendor scripts
       HAS_STYLEGUIDE: JSON.stringify(hasStyleguide),
       HAS_WATCHER: hasWatcher,
+      BUILD_HASH: JSON.stringify(new Date().getTime()),
     },
   };
 
@@ -55,6 +49,16 @@ module.exports = function(env = {}, options = {}) {
   const include = [
     path.resolve(__dirname, 'app'),
     path.resolve(__dirname, 'test'),
+  ];
+
+  const themes = {
+    'theme-01': path.resolve(__dirname, 'app/setup/scss/themes/theme-01.scss'),
+    'theme-02': path.resolve(__dirname, 'app/setup/scss/themes/theme-02.scss'),
+  };
+
+  const clean = [
+    ...Object.keys(themes).map(theme => `${assetsSubDirectory}js/${prefix}${theme}.js`), // TODO: does not work with hashes
+    `${assetsSubDirectory}js/*.map`,
   ];
 
   if (!isProfileBuild && hasMessage) {
@@ -71,19 +75,14 @@ module.exports = function(env = {}, options = {}) {
       all: false,
       // List created files
       assets: true,
+      // Sorting of stats info
+      assetsSort: '!size',
       // Show errors
       errors: true,
       // Show build time
       timings: true,
       // Show warnings
       warnings: true,
-      // Filter warning keywords
-      warningsFilter: [
-        'Conflicting order between',
-        /Conflicting order between/,
-        /mini-css-extract-plugin/,
-        'mini-css-extract-plugin',
-      ]
     };
 
     if (hasWatcher) {
@@ -99,50 +98,6 @@ module.exports = function(env = {}, options = {}) {
     return !isProfileBuild ? stats : undefined;
   }
 
-  function getPostCSSPipeline(output) {
-    const pipeline = [
-      postCssCriticalSplit({
-        output: output,
-      }),
-    ];
-
-    if (!hasWatcher) {
-      pipeline.push(cssNano({
-        // 'css-declaration-sorter': false,
-        // 'cssnano-util-raw-cache': false,
-        // 'postcss-calc': false,
-        // 'postcss-colormin': false,
-        // 'postcss-convert-values': false,
-        // 'postcss-discard-comments': false,
-        // 'postcss-discard-duplicates': false,
-        // 'postcss-discard-empty': false,
-        // 'postcss-discard-overridden': false,
-        // 'postcss-merge-longhand': false,
-        // 'postcss-merge-rules': false,
-        // 'postcss-minify-font-values': false,
-        // 'postcss-minify-gradients': false,
-        // 'postcss-minify-params': false,
-        // 'postcss-minify-selectors': false,
-        // 'postcss-normalize-charset': false,
-        // 'postcss-normalize-display-values': false,
-        // 'postcss-normalize-positions': false,
-        // 'postcss-normalize-repeat-style': false,
-        // 'postcss-normalize-string': false,
-        // 'postcss-normalize-timing-functions': false,
-        // 'postcss-normalize-unicode': false,
-        // 'postcss-normalize-url': false,
-        // 'postcss-normalize-whitespace': false,
-        // 'postcss-ordered-values': false,
-        // 'postcss-reduce-initial': false,
-        // 'postcss-reduce-transforms': false,
-        // 'postcss-svgo': false,
-        // 'postcss-unique-selectors': false,
-      }));
-    }
-
-    return pipeline;
-  }
-
   function plugins() {
     const pluginCollection = [
       new VueLoaderPlugin(),
@@ -150,7 +105,8 @@ module.exports = function(env = {}, options = {}) {
       new webpack.DefinePlugin(globalVariables),
 
       new MiniCssExtractPlugin({
-        filename: assetsSubDirectory + `css/${prefix}[name].css${isProduction ? '?[chunkhash]' : ''}`,
+        filename: assetsSubDirectory + `css/${prefix}[name]${contentHash}.css`,
+        ignoreOrder: true, // @see https://github.com/webpack-contrib/mini-css-extract-plugin#remove-order-warnings
       }),
 
       // copy custom static assets
@@ -179,12 +135,19 @@ module.exports = function(env = {}, options = {}) {
           },
         }));
       } else {
+        // Minify css output (was required because the default setup did not minify CSS from node_modules.
+        pluginCollection.push(
+          new OptimizeCssAssetsPlugin({
+            canPrint: hasMessage
+          })
+        );
+
         if (hasMessage) {
           pluginCollection.push(
             // Cleans dist directory and removes specific unnecessary files
             new WebpackCleanPlugin(
               clean,
-              { basePath: path.join(__dirname, 'dist/assets/') }),
+              { basePath: buildPath }),
           );
         }
       }
@@ -192,35 +155,30 @@ module.exports = function(env = {}, options = {}) {
       // keep module.id stable when vender modules does not change
       pluginCollection.push(new webpack.HashedModuleIdsPlugin());
 
-      // Create critical CSS
-      pluginCollection.push(new PostCssPipelineWebpackPlugin({
-        // provide an optional function to filter out unwanted CSS
-        predicate: name => name.indexOf('app.css') > -1,
-        suffix: 'critical',
-        pipeline: getPostCSSPipeline('critical'),
-      }));
-
-      // Create minimized CSS (Full css => incl. critical css)
-      pluginCollection.push(new PostCssPipelineWebpackPlugin({
-        suffix: '', // Defining an empty string makes it possible not create an additional file
-        pipeline: getPostCSSPipeline('input'),
-      }));
-
       // enable scope hoisting
       pluginCollection.push(new webpack.optimize.ModuleConcatenationPlugin());
-    } else { // Development
-      // pluginCollection.push(new StyleLintPlugin({ // TODO: add scss linting an re-enable
-      //   context: 'app',
-      //   files: [
-      //     '**/*.vue',
-      //     '**/*.scss',
-      //   ],
-      // }));
 
+      // Create a manifest file so the hashed file names can be used in twig templates.
+      pluginCollection.push(new WebpackManifestPlugin({
+        filter(options) {
+          return !options.isAsset;
+        }
+      }));
+
+      // Lint CSS styles. Don't use for production. It's too slow.
+      pluginCollection.push(new StyleLintPlugin({
+        context: 'app',
+        failOnError: true,
+        files: [
+          '**/*.vue',
+          '**/*.scss',
+        ],
+      }));
+    } else { // Development
       // Create index.html for dev server
       pluginCollection.push(new HtmlWebpackPlugin({ // Script tag injection
         inject: true,
-        template: 'index.html', // TODO: check if this can be replaced with a twig template in production build
+        template: 'index.html',
         chunksSortMode: 'dependency',
         excludeChunks: Object.keys(themes),
       }));
@@ -232,7 +190,7 @@ module.exports = function(env = {}, options = {}) {
 
         pluginCollection.push(new FriendlyErrorsPlugin({
           compilationSuccessInfo: {
-            messages: [ `Your application is running on http://${host === '0.0.0.0' ? 'localhost' : host}:${devPort}.` ],
+            messages: [`Your application is running on http://${host === '0.0.0.0' ? 'localhost' : host}:${devPort}.`],
           },
         }));
       }
@@ -242,15 +200,16 @@ module.exports = function(env = {}, options = {}) {
   }
 
   const baseConfig = {
+    mode: isProduction ? 'production' : 'development',
     entry: {
       ...themes,
       app: [
-        '@babel/polyfill', // TODO: is this still needed?
+        '@babel/polyfill',
         path.resolve(__dirname, 'app/main.js'),
       ],
     },
     resolve: {
-      extensions: [ '.js', '.vue', '.json' ],
+      extensions: ['.js', '.vue', '.json'],
       alias: {
         vue$: 'vue/dist/vue.esm.js', // Use 'vue.esm' when importing from 'vue'
         swiper$: 'swiper/dist/js/swiper.js', // Use builded code from swiper when importing from 'swiper'
@@ -281,6 +240,9 @@ module.exports = function(env = {}, options = {}) {
             // set this to false - it *may* help
             // https://vue-loader.vuejs.org/en/options.html#cachebusting
             cacheBusting: false, // TODO: shouldn't this be true?
+            compilerOptions: { // @see https://github.com/vuejs/vue/tree/dev/packages/vue-template-compiler#options
+              whitespace: 'condense',
+            }
           },
         },
         {
@@ -290,11 +252,11 @@ module.exports = function(env = {}, options = {}) {
             {
               loader: 'css-loader', // Note: will also call postcss
               options: {
+                importLoaders: 3,
                 sourceMap: !isProduction || hasStyleguide,
-                minimize: isProduction,
               },
             },
-            'postcss-loader',
+            'postcss-loader', // See ./postcss.config.js for configuration.
             {
               loader: 'sass-loader',
               options: {
@@ -319,28 +281,33 @@ module.exports = function(env = {}, options = {}) {
           test: /\.css$/,
           use: [
             hasStyleguide ? 'vue-style-loader' : MiniCssExtractPlugin.loader,
-            'style-loader',
-            'css-loader'
+            {
+              loader: 'css-loader',
+              options: {
+                importLoaders: 1,
+              }
+            },
           ],
         },
         {
           test: /\.styl$/,
-            use: [
-              hasStyleguide ? 'vue-style-loader' : MiniCssExtractPlugin.loader,
-              {
-                loader: 'css-loader',
-                options: {
-                  importLoaders: 1,
-                  sourceMap: !isProduction
-                }
+          use: [
+            hasStyleguide ? 'vue-style-loader' : MiniCssExtractPlugin.loader,
+            {
+              loader: 'css-loader',
+              options: {
+                importLoaders: 1,
+                sourceMap: !isProduction
+              }
+            },
+            'postcss-loader', // See ./postcss.config.js for configuration.
+            {
+              loader: 'stylus-loader',
+              options: {
+                sourceMap: !isProduction
               },
-              {
-                loader: 'stylus-loader',
-                options: {
-                  sourceMap: !isProduction
-                },
-              },
-            ]
+            },
+          ],
         },
         {
           test: /\.js$/,
@@ -360,7 +327,7 @@ module.exports = function(env = {}, options = {}) {
               loader: 'file-loader',
               options: {
                 context: 'app/assets/',
-                name: '[path]/[name].[ext]?[hash]',
+                name: `[path]/[name]${hash}.[ext]`,
                 outputPath: `${assetsSubDirectory}img/`,
               },
             },
@@ -414,7 +381,7 @@ module.exports = function(env = {}, options = {}) {
           loader: 'url-loader',
           options: {
             limit: 10000,
-            name: assetsSubDirectory + 'media/[name].[ext]?[hash]',
+            name: `${assetsSubDirectory}media/[name]${hash}.[ext]`,
           },
         },
         {
@@ -422,7 +389,7 @@ module.exports = function(env = {}, options = {}) {
           loader: 'url-loader',
           options: {
             limit: 10000,
-            name: assetsSubDirectory + 'fonts/[name].[ext]?[hash]',
+            name: `${assetsSubDirectory}fonts/[name]${hash}.[ext]`,
           },
         },
         {
@@ -471,7 +438,12 @@ module.exports = function(env = {}, options = {}) {
       overlay: true,
       quiet: true, // Handled by FriendlyErrorsPlugin
       inline: true,
+      progress: true,
       before(app) {
+        if (!hasStyleguide) {
+          console.clear();
+        }
+
         app.use('/__open-in-editor', openInEditor()); // Adds 'open in editor' support for Vue Inspector
       },
     },
@@ -482,8 +454,8 @@ module.exports = function(env = {}, options = {}) {
     watch: hasWatcher,
     output: {
       path: buildPath,
-      filename: `${assetsSubDirectory}js/${prefix}[name].js?[chunkhash]`,
-      chunkFilename: `${assetsSubDirectory}js/${prefix}[name].js?[chunkhash]`,
+      filename: `${assetsSubDirectory}js/${prefix}[name]${chunkHash}.js`,
+      chunkFilename: `${assetsSubDirectory}js/${prefix}[name]${chunkHash}.js`,
       publicPath: '/', // Public path to 'dist' scope in production
     },
     // @see https://webpack.js.org/configuration/devtool/#src/components/Sidebar/Sidebar.jsx
@@ -498,6 +470,7 @@ module.exports = function(env = {}, options = {}) {
     },
     plugins: plugins(),
     optimization: {
+      minimize: !hasWatcher,
       minimizer: [
         new UglifyJsPlugin({
           test: /\.js($|\?)/i, // MUST be defined because file has as query
@@ -506,6 +479,9 @@ module.exports = function(env = {}, options = {}) {
           sourceMap: hasStyleguide
         })
       ],
+      runtimeChunk: {
+        name: 'manifest'
+      },
       splitChunks: {
         cacheGroups: {
           vendor: {
@@ -515,9 +491,6 @@ module.exports = function(env = {}, options = {}) {
           },
         }
       },
-      runtimeChunk: {
-        name: 'manifest'
-      }
     }
   };
 
