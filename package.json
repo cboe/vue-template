@@ -5,6 +5,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "build": "npm run clean && webpack --mode production --env.message",
+    "build:firebase": "npm run clean && webpack --mode development --env.message",
     "build:monitor": "npm run build -- --env.monitor",
     "build:profile": "webpack --mode production --profile --json > stats/profile.json",
     "build:styleguide": "npm run build -- --env.styleguide && vue-styleguidist build",
