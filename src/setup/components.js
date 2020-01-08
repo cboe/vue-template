@@ -8,7 +8,7 @@
 // import cModal from '@/components/c-modal';
 
 // Web components
-import cTest from '@/components/c-test';
+import cDatepicker from '@/components/c-datepicker';
 
 // Import style only 'components'.
 require.context('@/components', false, /\.scss/);
@@ -21,10 +21,8 @@ export default {
       // cModal,
     ];
     const customElements = [
-      cTest,
+      cDatepicker,
     ];
-
-    Vue.customElement(cTest.name, cTest);
 
     // This improves component usage in PhpStorm, while keeping optimized import in production
     if (process.env.NODE_ENV === 'production') {

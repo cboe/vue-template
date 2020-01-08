@@ -10,3 +10,4 @@
 // cssVars({
 //   silent: process.env.NODE_ENV === 'production'
 // });
+import 'document-register-element';

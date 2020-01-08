@@ -45,7 +45,7 @@ module.exports = (env = {}, options = {}) => {
   const extensions = ['.js', '.vue', '.json'];
   const alias = {
     '@': path.join(__dirname, 'src'),
-    vue$: 'vue/dist/vue.esm.js', // Use 'vue.esm' when importing from 'vue'
+    vue$: isProduction ? 'vue/dist/vue.runtime.esm.js' : 'vue/dist/vue.esm.js', // Use 'vue.esm' when importing from 'vue'
     swiper$: 'swiper/dist/js/swiper.js', // Use builded code from swiper when importing from 'swiper'
   };
 
@@ -172,7 +172,7 @@ module.exports = (env = {}, options = {}) => {
     {
       test: /\.js$/,
       // The excessive exclude are required to make vue-styleguidist work in IE11.
-      exclude: /node_modules\/(?!(dom7|ssr-window|swiper|regexpu-core|unicode-match-property-ecmascript|unicode-match-property-value-ecmascript|acorn-jsx|@znck\/prop-types|chalk|react-dev-utils|strip-ansi|ansi-regex|ansi-styles)\/).*/,
+      exclude: /node_modules\/(?!(dom7|ssr-window|swiper|regexpu-core|unicode-match-property-ecmascript|unicode-match-property-value-ecmascript|acorn-jsx|@znck\/prop-types|chalk|react-dev-utils|strip-ansi|ansi-regex|ansi-styles|vuejs-datepicker)\/).*/,
       use: {
         loader: 'babel-loader',
       },
