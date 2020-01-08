@@ -20,6 +20,9 @@ export default {
       // eIcon,
       // cModal,
     ];
+    const customElements = [
+      cTest,
+    ];
 
     Vue.customElement(cTest.name, cTest);
 
@@ -33,5 +36,9 @@ export default {
       // Vue.component(eIcon.name, eIcon);
       // Vue.component(cModal.name, cModal);
     }
+
+    customElements.forEach((component) => {
+      Vue.customElement(component.name, component);
+    });
   },
 };
