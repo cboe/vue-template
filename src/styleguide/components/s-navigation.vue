@@ -13,9 +13,6 @@
         <li :class="b('navigation-item', { language: true })" @click.stop>
           <s-language />
         </li>
-        <li :class="b('navigation-item', { theme: true })" @click.stop>
-          <s-theme-selector />
-        </li>
         <li :class="b('navigation-item', { settings: true })">
           <h2>Settings</h2>
           <s-demo-settings />
@@ -50,7 +47,6 @@
 
 <script>
   import sLanguage from './s-language';
-  import sThemeSelector from './s-theme-selector';
   import sDemoSettings from './s-demo-settings';
 
   export default {
@@ -60,7 +56,6 @@
     components: {
       sDemoSettings,
       sLanguage,
-      sThemeSelector
     },
     props: {
       /**
