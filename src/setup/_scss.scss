@@ -7,12 +7,12 @@
 @import "scss/extends";
 
 // Font imports
-@import "scss/font";
+// @import "scss/font"; // Part of wrapping project
 
 /* critical:start */
 
 // Style reboot
-@import "scss/reboot";
+// @import "scss/reboot"; // Part of wrapping project
 
 // Global styles
 // @import "scss/spacings"; // Only enable spacing classes if needed!
@@ -22,4 +22,4 @@
 
 // Vendor styles
 // - Note: don't add *.css extension to import. Else the style will be moved to top of output file!
-@import "~swiper/dist/css/swiper";
+// @import "~swiper/dist/css/swiper";

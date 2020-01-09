@@ -2,24 +2,14 @@
   <div :class="b()">
     <datepicker
       :language="languages[language]"
-      :highlighted="{ dates: highlighted }"
+      :highlighted="{ dates: highlightedDatesInternal }"
       :day-cell-content="renderCell"
+      :disabled-dates="disabledDatesInternal"
       monday-first
       full-month-name
       inline
       @selected="onDateSelected"
     />
-    <footer v-if="highlightedDate" class="b('footer')">
-      <ul v-if="highlightedDate.activeTimeSlots">
-        <li v-for="(timeslot, index) in highlightedDate.activeTimeSlots" :key="index">
-          <label><input type="radio" name="timeslot" :value="timeslot.value">{{ timeslot.label }}</label>
-        </li>
-      </ul>
-      <div :class="b('actions')">
-        <div v-if="highlightedDate.additionalPrice" v-html="highlightedDate.additionalPrice"></div>
-        <button @click="onSubmit">OK</button>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -27,7 +17,6 @@
   /* eslint-disable id-length */
 
   import Datepicker from 'vuejs-datepicker';
-  import deliveryDates from '@/styleguide/mock-data/api-response/deliveryDates';
   import {
     de,
     fr,
@@ -46,25 +35,32 @@
 
     props: {
       highlightedDates: {
-        type: Array,
-        default: () => deliveryDates.data.validDates.map((entry) => {
-          const date = new Date(entry.date);
-
-          return {
-            date,
-            additionalPrice: entry.additionalPrice,
-            activeTimeSlots: entry.activeTimeSlots,
-          };
-        }),
+        type: String,
+        default: null,
+      },
+      highlightedDatesWithInfo: {
+        type: String,
+        default: null,
       },
       date: {
         type: Date,
         default: null,
-      }
+      },
+      min: {
+        type: String,
+        default: null,
+      },
+      max: {
+        type: String,
+        default: null
+      },
+      disabledDates: {
+        type: String,
+        default: null
+      },
     },
     data() {
       return {
-        highlighted: this.$props.highlightedDates.map(entry => entry.date),
         language: 'de', // TODO: make dynamic
         languages: {
           de,
@@ -77,21 +73,52 @@
     },
 
     computed: {
-      highlightedDate() {
-        const { dateInternal } = this;
+      highlightedDateInstances() {
+        const { highlightedDates } = this;
 
-        if (!dateInternal) {
-          return null;
+        return typeof highlightedDates === 'string'
+          ? highlightedDates.split(',').map(date => new Date(date))
+          : [];
+      },
+      highlightedDatesWithInfoInstances() {
+        const { highlightedDatesWithInfo } = this;
+
+        return typeof highlightedDatesWithInfo === 'string'
+          ? highlightedDatesWithInfo.split(',').map(date => new Date(date))
+          : [];
+      },
+      disabledDatesInstances() {
+        const { disabledDates } = this;
+
+        return typeof disabledDates === 'string'
+          ? disabledDates.split(',').map(date => new Date(date))
+          : [];
+      },
+      highlightedDatesInternal() {
+        return [...this.highlightedDateInstances, ...this.highlightedDatesWithInfoInstances];
+      },
+      disabledDatesInternal() {
+        const {
+          min,
+          max,
+          disabledDatesInstances,
+        } = this;
+        const disabledDates = {};
+
+        if (disabledDatesInstances.length) {
+          disabledDates.dates = disabledDatesInstances;
         }
 
-        return this.highlightedDates.find((entry) => {
-          const entryDate = entry.date;
+        if (min) {
+          disabledDates.to = new Date(min);
+        }
 
-          return entryDate.getDate() === dateInternal.getDate()
-            && entryDate.getMonth() === dateInternal.getMonth()
-            && entryDate.getFullYear() === dateInternal.getFullYear();
-        });
-      },
+        if (max) {
+          disabledDates.from = new Date(max);
+        }
+
+        return disabledDates;
+      }
     },
     // watch: {},
 
@@ -108,30 +135,26 @@
 
     methods: {
       renderCell(cell) {
-        if (cell.isHighlighted) {
-          const cellDate = new Date(cell.timestamp);
-          const highlightedDate = this.highlightedDates.find((entry) => {
-            const entryDate = entry.date;
+        const cellDate = new Date(cell.timestamp);
+        const dateString = cellDate.toISOString().split('T')[0];
 
-            return entry.additionalPrice
-              && entryDate.getDate() === cellDate.getDate()
-              && entryDate.getMonth() === cellDate.getMonth()
-              && entryDate.getFullYear() === cellDate.getFullYear();
-          });
-
-          if (highlightedDate) {
-            return `<span class="${this.b('cell-inner', { additionalPrice: true })}">${cell.date}</span>`;
-          }
+        if (this.highlightedDatesWithInfo && this.highlightedDatesWithInfo.includes(dateString)) {
+          return `<span class="${this.b('cell-inner', { additionalPrice: true })}">${cell.date}</span>`;
         }
 
         return cell.date;
       },
+      emit(eventName) {
+        this.$emit(eventName, {
+          date: this.dateInternal,
+          pickupSlot: null
+        });
+      },
       onDateSelected(date) {
         this.dateInternal = date;
+
+        this.emit('change');
       },
-      onSubmit() {
-        this.$emit('change', this.dateInternal);
-      }
     },
     // render() {},
   };
@@ -153,6 +176,8 @@
     // vuejs-datepicker
     /* stylelint-disable selector-class-pattern */
     .vdp-datepicker__calendar {
+      width: 100%;
+
       header {
         @include font($font-size--14);
 

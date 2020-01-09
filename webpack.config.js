@@ -30,7 +30,7 @@ module.exports = (env = {}, options = {}) => {
   const buildPath = path.resolve(__dirname, 'dist');
   const publicPath = '/'; // Base path which is used in production to load modules via http.
   const outputAssetsFolder = 'assets/';
-  const filePrefix = 'app';
+  const filePrefix = 'nettoshop';
   const themes = {
     'theme-01': path.resolve(__dirname, 'src/setup/scss/themes/theme-01.scss'),
     'theme-02': path.resolve(__dirname, 'src/setup/scss/themes/theme-02.scss'),

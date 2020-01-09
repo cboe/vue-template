@@ -1,70 +1,4 @@
-html,
-body {
-  height: 100%;
-  font-family: $font-family--primary;
-  // -webkit-font-smoothing: antialiased;
-  // -moz-osx-font-smoothing: grayscale;
-  background-color: $color-grayscale--1000;
-}
-
-h1 {
-  @include font($font-size--18);
-}
-
-h2 {
-  @include font($font-size--16);
-}
-
-h3 {
-  @include font($font-size--14);
-}
-
-h4 {
-  @include font($font-size--14);
-
-  font-weight: $font-weight--bold;
-}
-
-h5 {
-  @include font($font-size--14);
-
-  font-weight: $font-weight--semi-bold;
-}
-
-h6 {
-  @include font($font-size--14);
-}
-
-p {
-  @include font($font-size--14);
-
-  font-weight: 400;
-}
-
-/* stylelint-disable selector-class-pattern, selector-max-id */
-html.scroll {
-  overflow-y: scroll;
-}
-
-body.no-scroll--x-y {
-  overflow: hidden;
-  height: 100%;
-  position: fixed;
-}
-
-body.no-scroll--x {
-  overflow-x: hidden;
-}
-
-body.no-scroll--y {
-  overflow-y: hidden; // TODO: not yet tested.
-  height: 100%;
-}
-
-body.no-scroll--position-fixed {
-  position: fixed;
-}
-
+/* stylelint-disable */
 #app {
   height: 100%;
 }
@@ -77,7 +11,3 @@ body.no-scroll--position-fixed {
   top: 0;
 }
 /* stylelint-enable */
-
-[inline-template] { // Hides inline templates from flashing before rendering
-  display: none;
-}
