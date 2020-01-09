@@ -1,6 +1,6 @@
 import { mount, createLocalVue } from '@vue/test-utils';
 import VueBemCn from '@/plugins/vue-bem-cn';
-import component from '@/components/e-icon';
+import component from '@/components/disabled/e-icon';
 
 describe('component | e-button', () => {
   const localVue = createLocalVue();
