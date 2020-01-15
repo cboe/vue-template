@@ -14,16 +14,20 @@
 
     <h2>README.md</h2>
     <hr>
-    <s-readme />
+
+    <div :class="$style.cssModulesTest">
+      <p>This is a sandbox for testing css modules in combination with Vue.js</p>
+    </div>
+    <!--<s-readme />-->
   </div>
 </template>
 
 <script>
-  import sReadme from '@/styleguide/components/s-readme';
+  // import sReadme from '@/styleguide/components/s-readme';
 
   export default {
     name: 'index',
-    components: { sReadme },
+    // components: { sReadme },
     computed: {
       isProduction() {
         return process.env.NODE_ENV === 'production';
@@ -32,7 +36,7 @@
   };
 </script>
 
-<style lang="scss">
+<style lang="scss" module>
   /* stylelint-disable selector-class-pattern */
   .index {
     max-width: map-get($breakpoints, xl);
@@ -52,5 +56,10 @@
       background: rgba($color-primary--2--rgb, 0.5);
       color: $color-primary--3;
     }
+  }
+
+  .cssModulesTest {
+    outline: 1px solid deepskyblue;
+    max-width: 35em;
   }
 </style>
